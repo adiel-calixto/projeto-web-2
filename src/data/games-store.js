@@ -1,3 +1,6 @@
+import { Game } from '../models/game.js';
+import { Counter } from '../models/counter.js';
+
 export function validateGameInput(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { valid: false, message: 'O corpo da requisição deve ser um objeto JSON.' };
@@ -32,46 +35,61 @@ export function validateGameInput(input) {
   };
 }
 
-export function createGamesStore() {
-  const games = [];
-  let nextCode = 1;
+function toGame(document) {
+  if (!document) {
+    return null;
+  }
 
   return {
-    list() {
-      return games;
+    code: document.code,
+    title: document.title,
+    price: document.price,
+    genre: document.genre,
+  };
+}
+
+async function nextCode() {
+  const counter = await Counter.findOneAndUpdate(
+    { _id: 'gameCode' },
+    { $inc: { seq: 1 } },
+    { returnDocument: 'after', upsert: true },
+  );
+
+  return `G${String(counter.seq).padStart(3, '0')}`;
+}
+
+export function createGamesStore() {
+  return {
+    async list() {
+      const games = await Game.find().lean();
+      return games.map(toGame);
     },
 
-    findByCode(code) {
-      return games.find((game) => game.code === code);
+    async findByCode(code) {
+      const game = await Game.findOne({ code }).lean();
+      return toGame(game);
     },
 
-    create(input) {
+    async create(input) {
       const validation = validateGameInput(input);
 
       if (!validation.valid) {
         return validation;
       }
 
-      const game = {
-        code: `G${String(nextCode).padStart(3, '0')}`,
+      const code = await nextCode();
+
+      const created = await Game.create({
+        code,
         ...validation.value,
-      };
+      });
 
-      nextCode += 1;
-      games.push(game);
-
-      return { valid: true, game };
+      return { valid: true, game: toGame(created.toObject()) };
     },
 
-    deleteByCode(code) {
-      const index = games.findIndex((game) => game.code === code);
-
-      if (index === -1) {
-        return false;
-      }
-
-      games.splice(index, 1);
-      return true;
+    async deleteByCode(code) {
+      const result = await Game.deleteOne({ code });
+      return result.deletedCount > 0;
     },
   };
 }

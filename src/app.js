@@ -1,5 +1,6 @@
 import express from 'express';
 import { createGamesStore } from './data/games-store.js';
+import { createRequestLogsStore } from './data/request-logs-store.js';
 import { createRequestLogger } from './middleware/request-logger.js';
 import { createWeekdayAccessMiddleware } from './middleware/weekday-access.js';
 import { createGamesRouter } from './routes/games.js';
@@ -7,8 +8,9 @@ import { createRequestLogsRouter } from './routes/request-logs.js';
 
 export function createApp() {
   const app = express();
+
   const games = createGamesStore();
-  const requestLogs = [];
+  const requestLogs = createRequestLogsStore();
 
   app.use(createRequestLogger(requestLogs));
   app.use(createWeekdayAccessMiddleware());

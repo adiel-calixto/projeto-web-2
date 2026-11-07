@@ -123,40 +123,60 @@ function sendGamesPdf(res, next, games) {
 export function createGamesRouter(store) {
   const router = Router();
 
-  router.get('/', (req, res) => {
-    res.json(store.list());
-  });
-
-  router.post('/', (req, res) => {
-    const result = store.create(req.body);
-
-    if (!result.valid) {
-      return res.status(400).json({ erro: result.message });
+  router.get('/', async (req, res, next) => {
+    try {
+      res.json(await store.list());
+    } catch (error) {
+      next(error);
     }
-
-    return res.status(201).json(result.game);
   });
 
-  router.get('/pdf', (req, res, next) => {
-    sendGamesPdf(res, next, store.list());
-  });
+  router.post('/', async (req, res, next) => {
+    try {
+      const result = await store.create(req.body);
 
-  router.get('/:codigo', (req, res) => {
-    const game = store.findByCode(req.params.codigo);
+      if (!result.valid) {
+        return res.status(400).json({ erro: result.message });
+      }
 
-    if (!game) {
-      return res.status(404).json({ erro: 'Jogo não encontrado.' });
+      return res.status(201).json(result.game);
+    } catch (error) {
+      return next(error);
     }
-
-    return res.json(game);
   });
 
-  router.delete('/:codigo', (req, res) => {
-    if (!store.deleteByCode(req.params.codigo)) {
-      return res.status(404).json({ erro: 'Jogo não encontrado.' });
+  router.get('/pdf', async (req, res, next) => {
+    try {
+      sendGamesPdf(res, next, await store.list());
+    } catch (error) {
+      next(error);
     }
+  });
 
-    return res.status(204).end();
+  router.get('/:codigo', async (req, res, next) => {
+    try {
+      const game = await store.findByCode(req.params.codigo);
+
+      if (!game) {
+        return res.status(404).json({ erro: 'Jogo não encontrado.' });
+      }
+
+      return res.json(game);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.delete('/:codigo', async (req, res, next) => {
+    try {
+      if (!(await store.deleteByCode(req.params.codigo))) {
+        return res.status(404).json({ erro: 'Jogo não encontrado.' });
+      }
+
+      return res.status(204).end();
+    } catch (error) {
+      return next(error);
+    }
   });
 
   return router;

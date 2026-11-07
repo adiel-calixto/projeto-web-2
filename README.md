@@ -1,6 +1,6 @@
 # Catálogo de jogos
 
-API REST simples feita com Node.js e Express. Os jogos e os registros de requisição ficam em memória e são apagados ao reiniciar o servidor.
+API REST simples feita com Node.js e Express. Os jogos e os registros de requisição são persistidos no MongoDB.
 
 ## Executar
 
@@ -10,6 +10,8 @@ npm start
 ```
 
 Por padrão, a API fica em `http://localhost:3000`. Para usar outra porta, defina a variável de ambiente `PORT`.
+
+O MongoDB é obrigatório. Por padrão a conexão usa `mongodb://127.0.0.1:27017/psw2`; defina `MONGODB_URI` para usar outro servidor/banco.
 
 ## Rotas
 

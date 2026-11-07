@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { filterLogsByDate, isValidDateParam } from '../utils/date-utils.js';
 
-export function createRequestLogsRouter(logs) {
+export function createRequestLogsRouter(requestLogs) {
   const router = Router();
 
-  router.get('/', (req, res) => {
+  router.get('/', async (req, res, next) => {
     const { data } = req.query;
 
     if (!isValidDateParam(data)) {
@@ -13,7 +13,12 @@ export function createRequestLogsRouter(logs) {
       });
     }
 
-    return res.json(filterLogsByDate(logs, data));
+    try {
+      const entries = await requestLogs.list();
+      return res.json(filterLogsByDate(entries, data));
+    } catch (error) {
+      return next(error);
+    }
   });
 
   return router;
