@@ -7,10 +7,23 @@ import {
   createInMemoryRequestLogsStore,
 } from '../helpers/in-memory-stores.js';
 import { createFakeMailer } from '../helpers/fake-mailer.js';
+import { createFakeStorage } from '../helpers/fake-storage.js';
 import { createPassThroughLimiters, testConfig } from '../helpers/test-config.js';
 
-const hades = { code: 'G001', title: 'Hades', price: 49.9, genre: 'Ação' };
-const celeste = { code: 'G002', title: 'Celeste', price: 19.9, genre: 'Plataforma' };
+const hades = {
+  code: 'G001',
+  title: 'Hades',
+  price: 49.9,
+  genre: 'Ação',
+  coverUrl: null,
+};
+const celeste = {
+  code: 'G002',
+  title: 'Celeste',
+  price: 19.9,
+  genre: 'Plataforma',
+  coverUrl: null,
+};
 const accessToken = signAccessToken({ id: 'user-1' }, { secret: testConfig.jwt.secret });
 
 function authorize(testRequest) {
@@ -22,6 +35,7 @@ function createTestApp(gamesStore) {
     gamesStore,
     requestLogsStore: createInMemoryRequestLogsStore(),
     mailer: createFakeMailer(),
+    storage: createFakeStorage(),
     config: testConfig,
     limiters: createPassThroughLimiters(),
     isWeekdayCheck: () => true,
@@ -61,6 +75,7 @@ describe('jogos', () => {
       title: 'Stardew Valley',
       price: 24.9,
       genre: 'Simulação',
+      coverUrl: null,
     });
     expect(gamesStore.games).toContainEqual(response.body);
   });

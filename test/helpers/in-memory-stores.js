@@ -11,7 +11,10 @@ function nextGameSequence(games) {
 }
 
 export function createInMemoryGamesStore(initialGames = []) {
-  const games = initialGames.map((game) => ({ ...game }));
+  const games = initialGames.map((game) => ({
+    ...game,
+    coverUrl: game.coverUrl ?? null,
+  }));
   let nextSequence = nextGameSequence(games);
 
   return {
@@ -31,12 +34,35 @@ export function createInMemoryGamesStore(initialGames = []) {
       const game = {
         code: `G${String(nextSequence).padStart(3, '0')}`,
         ...validation.value,
+        coverUrl: null,
       };
 
       nextSequence += 1;
       games.push(game);
 
       return { valid: true, game: { ...game } };
+    }),
+    setCover: jest.fn(async (code, url) => {
+      const game = games.find((entry) => entry.code === code);
+
+      if (!game) {
+        return { found: false, previousUrl: null };
+      }
+
+      const previousUrl = game.coverUrl ?? null;
+      game.coverUrl = url;
+      return { found: true, previousUrl };
+    }),
+    clearCover: jest.fn(async (code) => {
+      const game = games.find((entry) => entry.code === code);
+
+      if (!game) {
+        return { found: false, previousUrl: null };
+      }
+
+      const previousUrl = game.coverUrl ?? null;
+      game.coverUrl = null;
+      return { found: true, previousUrl };
     }),
     deleteByCode: jest.fn(async (code) => {
       const index = games.findIndex((entry) => entry.code === code);

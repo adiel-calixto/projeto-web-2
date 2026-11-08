@@ -7,6 +7,7 @@ import { createUsersStore } from './data/users-store.js';
 import { createRateLimiters } from './middleware/rate-limits.js';
 import { createRequestLogger } from './middleware/request-logger.js';
 import { createRequireAuth } from './middleware/require-auth.js';
+import { uploadCover } from './middleware/upload-cover.js';
 import { createWeekdayAccessMiddleware } from './middleware/weekday-access.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createGamesRouter } from './routes/games.js';
@@ -19,6 +20,7 @@ export function createApp({
   usersStore = createUsersStore(),
   refreshTokensStore = createRefreshTokensStore(),
   mailer,
+  storage,
   config,
   limiters = createRateLimiters(),
   isWeekdayCheck = isWeekday,
@@ -29,6 +31,10 @@ export function createApp({
 
   if (!mailer) {
     throw new Error('createApp exige um serviço de e-mail.');
+  }
+
+  if (!storage) {
+    throw new Error('createApp exige um serviço de armazenamento.');
   }
 
   const app = express();
@@ -53,7 +59,11 @@ export function createApp({
   }));
 
   app.use(createWeekdayAccessMiddleware(isWeekdayCheck));
-  app.use('/jogos', createGamesRouter(gamesStore, { requireAuth }));
+  app.use('/jogos', createGamesRouter(gamesStore, {
+    requireAuth,
+    storage,
+    uploadCover,
+  }));
   app.use('/requisicoes', createRequestLogsRouter(requestLogsStore));
 
   app.use((req, res) => {

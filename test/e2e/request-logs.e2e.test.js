@@ -6,6 +6,7 @@ import {
   createInMemoryRequestLogsStore,
 } from '../helpers/in-memory-stores.js';
 import { createFakeMailer } from '../helpers/fake-mailer.js';
+import { createFakeStorage } from '../helpers/fake-storage.js';
 import { createPassThroughLimiters, testConfig } from '../helpers/test-config.js';
 
 describe('requisições', () => {
@@ -30,6 +31,7 @@ describe('requisições', () => {
       gamesStore: createInMemoryGamesStore(),
       requestLogsStore,
       mailer: createFakeMailer(),
+      storage: createFakeStorage(),
       config: testConfig,
       limiters: createPassThroughLimiters(),
       isWeekdayCheck: () => true,

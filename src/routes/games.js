@@ -1,7 +1,21 @@
 import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import { renderGamesPdf } from '../pdf/games-pdf.js';
+import { validateCoverFile } from '../storage/image-validation.js';
 
-export function createGamesRouter(store, { requireAuth }) {
+async function deleteStoredCover(storage, url) {
+  try {
+    await storage.deleteByUrl(url);
+  } catch (error) {
+    console.error('Falha ao apagar capa do S3:', error);
+  }
+}
+
+export function createGamesRouter(store, {
+  requireAuth,
+  storage,
+  uploadCover,
+}) {
   const router = Router();
 
   router.get('/', async (req, res, next) => {
@@ -50,6 +64,75 @@ export function createGamesRouter(store, { requireAuth }) {
     }
   });
 
+  router.put('/:codigo/capa', requireAuth, uploadCover, async (req, res, next) => {
+    try {
+      const game = await store.findByCode(req.params.codigo);
+
+      if (!game) {
+        return res.status(404).json({ erro: 'Jogo não encontrado.' });
+      }
+
+      const validation = await validateCoverFile(req.file);
+
+      if (!validation.valid) {
+        return res.status(400).json({ erro: validation.message });
+      }
+
+      const key = `games/${game.code}/${randomUUID()}.${validation.extension}`;
+      const { url } = await storage.upload({
+        key,
+        body: req.file.buffer,
+        contentType: validation.contentType,
+      });
+
+      let updated;
+
+      try {
+        updated = await store.setCover(game.code, url);
+      } catch (error) {
+        await deleteStoredCover(storage, url);
+        throw error;
+      }
+
+      if (!updated.found) {
+        await deleteStoredCover(storage, url);
+        return res.status(404).json({ erro: 'Jogo não encontrado.' });
+      }
+
+      if (updated.previousUrl) {
+        await deleteStoredCover(storage, updated.previousUrl);
+      }
+
+      return res.json({ ...game, coverUrl: url });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.delete('/:codigo/capa', requireAuth, async (req, res, next) => {
+    try {
+      const game = await store.findByCode(req.params.codigo);
+
+      if (!game) {
+        return res.status(404).json({ erro: 'Jogo não encontrado.' });
+      }
+
+      if (!game.coverUrl) {
+        return res.status(404).json({ erro: 'O jogo não possui capa.' });
+      }
+
+      const updated = await store.clearCover(game.code);
+
+      if (updated.previousUrl) {
+        await deleteStoredCover(storage, updated.previousUrl);
+      }
+
+      return res.status(204).end();
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   router.get('/:codigo', async (req, res, next) => {
     try {
       const game = await store.findByCode(req.params.codigo);
@@ -66,8 +149,14 @@ export function createGamesRouter(store, { requireAuth }) {
 
   router.delete('/:codigo', requireAuth, async (req, res, next) => {
     try {
+      const game = await store.findByCode(req.params.codigo);
+
       if (!(await store.deleteByCode(req.params.codigo))) {
         return res.status(404).json({ erro: 'Jogo não encontrado.' });
+      }
+
+      if (game?.coverUrl) {
+        await deleteStoredCover(storage, game.coverUrl);
       }
 
       return res.status(204).end();

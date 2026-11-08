@@ -45,6 +45,7 @@ function toGame(document) {
     title: document.title,
     price: document.price,
     genre: document.genre,
+    coverUrl: document.coverUrl ?? null,
   };
 }
 
@@ -85,6 +86,32 @@ export function createGamesStore() {
       });
 
       return { valid: true, game: toGame(created.toObject()) };
+    },
+
+    async setCover(code, url) {
+      const previous = await Game.findOneAndUpdate(
+        { code },
+        { coverUrl: url },
+        { returnDocument: 'before' },
+      ).lean();
+
+      return {
+        found: Boolean(previous),
+        previousUrl: previous?.coverUrl ?? null,
+      };
+    },
+
+    async clearCover(code) {
+      const previous = await Game.findOneAndUpdate(
+        { code },
+        { coverUrl: null },
+        { returnDocument: 'before' },
+      ).lean();
+
+      return {
+        found: Boolean(previous),
+        previousUrl: previous?.coverUrl ?? null,
+      };
     },
 
     async deleteByCode(code) {

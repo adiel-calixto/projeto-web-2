@@ -54,7 +54,13 @@ describe('createGamesStore', () => {
     });
 
     await expect(createGamesStore().list()).resolves.toEqual([
-      { code: 'G001', title: 'Hades', price: 49.9, genre: 'Ação' },
+      {
+        code: 'G001',
+        title: 'Hades',
+        price: 49.9,
+        genre: 'Ação',
+        coverUrl: null,
+      },
     ]);
   });
 
@@ -81,6 +87,7 @@ describe('createGamesStore', () => {
       title: 'Hades',
       price: 49.9,
       genre: 'Ação',
+      coverUrl: null,
     });
     await expect(store.findByCode('G404')).resolves.toBeNull();
   });
@@ -133,8 +140,63 @@ describe('createGamesStore', () => {
     });
     expect(result).toEqual({
       valid: true,
-      game: { code, title: 'Hades', price: 49.9, genre: 'Ação' },
+      game: {
+        code,
+        title: 'Hades',
+        price: 49.9,
+        genre: 'Ação',
+        coverUrl: null,
+      },
     });
+  });
+
+  test('define a capa e devolve a URL anterior', async () => {
+    const findOneAndUpdate = jest.spyOn(Game, 'findOneAndUpdate');
+
+    findOneAndUpdate.mockReturnValueOnce({
+      lean: jest.fn().mockResolvedValue({
+        code: 'G001',
+        coverUrl: 'https://capas.test/games/G001/antiga.png',
+      }),
+    });
+    findOneAndUpdate.mockReturnValueOnce({
+      lean: jest.fn().mockResolvedValue(null),
+    });
+
+    const store = createGamesStore();
+
+    await expect(store.setCover('G001', 'https://capas.test/games/G001/nova.png'))
+      .resolves.toEqual({
+        found: true,
+        previousUrl: 'https://capas.test/games/G001/antiga.png',
+      });
+    await expect(store.setCover('G404', 'https://capas.test/games/G404/nova.png'))
+      .resolves.toEqual({ found: false, previousUrl: null });
+
+    expect(findOneAndUpdate).toHaveBeenCalledWith(
+      { code: 'G001' },
+      { coverUrl: 'https://capas.test/games/G001/nova.png' },
+      { returnDocument: 'before' },
+    );
+  });
+
+  test('remove a capa e devolve a URL anterior', async () => {
+    const findOneAndUpdate = jest.spyOn(Game, 'findOneAndUpdate').mockReturnValue({
+      lean: jest.fn().mockResolvedValue({
+        code: 'G001',
+        coverUrl: 'https://capas.test/games/G001/antiga.png',
+      }),
+    });
+
+    await expect(createGamesStore().clearCover('G001')).resolves.toEqual({
+      found: true,
+      previousUrl: 'https://capas.test/games/G001/antiga.png',
+    });
+    expect(findOneAndUpdate).toHaveBeenCalledWith(
+      { code: 'G001' },
+      { coverUrl: null },
+      { returnDocument: 'before' },
+    );
   });
 
   test('informa se o jogo foi excluído', async () => {
