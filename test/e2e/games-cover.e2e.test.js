@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { signAccessToken } from '../../src/auth/tokens.js';
+import { MAX_COVER_BYTES } from '../../src/storage/image-validation.js';
 import {
   createInMemoryGamesStore,
   createInMemoryRequestLogsStore,
@@ -112,6 +113,24 @@ describe('capa dos jogos', () => {
     expect(response.body).toEqual({
       erro: 'Envie a imagem no campo "capa".',
     });
+  });
+
+  test('recusa imagem maior que 5 MB com 413', async () => {
+    const response = await authorize(request(context.app).put('/jogos/G001/capa'))
+      .attach('capa', Buffer.alloc(MAX_COVER_BYTES + 1), 'grande.png');
+
+    expect(response.status).toBe(413);
+    expect(response.body).toEqual({ erro: 'A imagem excede 5 MB.' });
+    expect(context.storage.upload).not.toHaveBeenCalled();
+  });
+
+  test('recusa upload com nome de campo errado', async () => {
+    const response = await authorize(request(context.app).put('/jogos/G001/capa'))
+      .attach('imagem', png, 'capa.png');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ erro: 'Upload inválido.' });
+    expect(context.storage.upload).not.toHaveBeenCalled();
   });
 
   test('retorna 404 ao enviar capa para jogo inexistente', async () => {

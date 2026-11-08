@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import { createAuthService } from './auth/auth-service.js';
 import { createGamesStore } from './data/games-store.js';
 import { createRefreshTokensStore } from './data/refresh-tokens-store.js';
@@ -73,6 +74,14 @@ export function createApp({
   app.use((error, req, res, next) => {
     if (error.type === 'entity.parse.failed') {
       return res.status(400).json({ erro: 'O corpo da requisição contém JSON inválido.' });
+    }
+
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ erro: 'A imagem excede 5 MB.' });
+    }
+
+    if (error instanceof multer.MulterError) {
+      return res.status(400).json({ erro: 'Upload inválido.' });
     }
 
     return res.status(500).json({ erro: 'Ocorreu um erro interno.' });
