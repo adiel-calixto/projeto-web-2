@@ -40,6 +40,10 @@ A API permite acesso de segunda a sexta-feira, conforme o fuso `America/Fortalez
 
 ## Testes
 
+Os testes usam Jest e não precisam de MongoDB: os testes e2e usam stores em memória.
+
 ```sh
-npm test
+npm test          # todos os testes
+npm run test:unit # apenas testes unitários
+npm run test:e2e  # apenas testes e2e (supertest)
 ```
