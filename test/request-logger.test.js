@@ -21,5 +21,5 @@ test('request logger delegates persistence to the injected store', async () => {
   assert.equal(entries.length, 1);
   assert.equal(entries[0].method, 'GET');
   assert.equal(entries[0].path, '/jogos');
-  assert.match(entries[0].timestamp, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/);
+  assert.ok(entries[0].timestamp instanceof Date);
 });

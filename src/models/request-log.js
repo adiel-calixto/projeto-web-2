@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 
 const requestLogSchema = new Schema({
-  timestamp: { type: String, required: true },
+  timestamp: { type: Date, required: true },
   method: { type: String, required: true },
   path: { type: String, required: true },
 });

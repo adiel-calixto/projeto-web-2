@@ -1,10 +1,8 @@
-import { formatFortalezaTimestamp } from '../utils/date-utils.js';
-
 export function createRequestLogger(requestLogs) {
   return async (req, res, next) => {
     try {
       await requestLogs.create({
-        timestamp: formatFortalezaTimestamp(),
+        timestamp: new Date(),
         method: req.method,
         path: req.path,
       });

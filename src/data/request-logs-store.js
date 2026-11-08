@@ -1,7 +1,7 @@
 import { RequestLog } from '../models/request-log.js';
 
 function toEntry({ timestamp, method, path }) {
-  return { timestamp, method, path };
+  return { timestamp: new Date(timestamp), method, path };
 }
 
 export function createRequestLogsStore() {
