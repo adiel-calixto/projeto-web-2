@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
-import { verifyAccessToken } from '../../src/auth/tokens.js';
+import { signAccessToken, verifyAccessToken } from '../../src/auth/tokens.js';
 import {
   createInMemoryGamesStore,
   createInMemoryRefreshTokensStore,
@@ -52,6 +52,21 @@ function verifyEmail(app, mailer) {
 async function registerAndVerify(context) {
   await register(context.app);
   return verifyEmail(context.app, context.mailer);
+}
+
+function login(context, overrides = {}) {
+  return request(context.app)
+    .post('/auth/login')
+    .send({
+      email: defaultUser.email,
+      password: defaultUser.password,
+      ...overrides,
+    });
+}
+
+async function registerVerifyAndLogin(context) {
+  await registerAndVerify(context);
+  return login(context);
 }
 
 describe('autenticação', () => {
@@ -208,6 +223,116 @@ describe('autenticação', () => {
     expect(existing.body).toEqual({ mensagem: expectedMessage });
     expect(unknown.body).toEqual(existing.body);
     expect(context.mailer.sent).toHaveLength(2);
+  });
+
+  test('refresh rotaciona o token e detecta reuso', async () => {
+    const firstLogin = await registerVerifyAndLogin(context);
+    const firstRefreshToken = firstLogin.body.refreshToken;
+
+    const refreshed = await request(context.app)
+      .post('/auth/refresh')
+      .send({ refreshToken: firstRefreshToken });
+
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.body).toEqual({
+      accessToken: expect.any(String),
+      refreshToken: expect.any(String),
+      tokenType: 'Bearer',
+      expiresIn: '15m',
+    });
+    expect(refreshed.body.refreshToken).not.toBe(firstRefreshToken);
+
+    const reuse = await request(context.app)
+      .post('/auth/refresh')
+      .send({ refreshToken: firstRefreshToken });
+
+    expect(reuse.status).toBe(401);
+    expect(reuse.body).toEqual({ erro: 'Refresh token inválido ou expirado.' });
+
+    const afterReuse = await request(context.app)
+      .post('/auth/refresh')
+      .send({ refreshToken: refreshed.body.refreshToken });
+
+    expect(afterReuse.status).toBe(401);
+  });
+
+  test('recusa refresh token expirado', async () => {
+    const loggedIn = await registerVerifyAndLogin(context);
+    context.refreshTokensStore.tokens[0].expiresAt = new Date(Date.now() - 1000);
+
+    const response = await request(context.app)
+      .post('/auth/refresh')
+      .send({ refreshToken: loggedIn.body.refreshToken });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ erro: 'Refresh token inválido ou expirado.' });
+  });
+
+  test('logout revoga o refresh token', async () => {
+    const loggedIn = await registerVerifyAndLogin(context);
+
+    const logout = await request(context.app)
+      .post('/auth/logout')
+      .send({ refreshToken: loggedIn.body.refreshToken });
+    const refreshed = await request(context.app)
+      .post('/auth/refresh')
+      .send({ refreshToken: loggedIn.body.refreshToken });
+
+    expect(logout.status).toBe(204);
+    expect(logout.text).toBe('');
+    expect(refreshed.status).toBe(401);
+  });
+
+  test('logout sem token é idempotente', async () => {
+    const response = await request(context.app).post('/auth/logout');
+
+    expect(response.status).toBe(204);
+  });
+
+  test('GET /auth/eu exige autenticação e devolve só dados públicos', async () => {
+    const loggedIn = await registerVerifyAndLogin(context);
+
+    const unauthorized = await request(context.app).get('/auth/eu');
+    const authorized = await request(context.app)
+      .get('/auth/eu')
+      .set('Authorization', `Bearer ${loggedIn.body.accessToken}`);
+
+    expect(unauthorized.status).toBe(401);
+    expect(unauthorized.body).toEqual({ erro: 'Autenticação necessária.' });
+    expect(authorized.status).toBe(200);
+    expect(authorized.body).toEqual({
+      id: context.usersStore.users[0].id,
+      name: defaultUser.name,
+      email: defaultUser.email,
+      emailVerified: true,
+    });
+    expect(authorized.body).not.toHaveProperty('passwordHash');
+  });
+
+  test('GET /auth/eu distingue token expirado de inválido', async () => {
+    const expired = signAccessToken({ id: 'user-1' }, {
+      secret: testConfig.jwt.secret,
+      expiresIn: -1,
+    });
+
+    const expiredResponse = await request(context.app)
+      .get('/auth/eu')
+      .set('Authorization', `Bearer ${expired}`);
+    const invalidResponse = await request(context.app)
+      .get('/auth/eu')
+      .set('Authorization', 'Bearer token-invalido');
+
+    expect(expiredResponse.status).toBe(401);
+    expect(expiredResponse.body).toEqual({ erro: 'Token expirado.' });
+    expect(invalidResponse.status).toBe(401);
+    expect(invalidResponse.body).toEqual({ erro: 'Token inválido.' });
+  });
+
+  test('refresh sem token responde 401', async () => {
+    const response = await request(context.app).post('/auth/refresh');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ erro: 'Refresh token inválido ou expirado.' });
   });
 
   test('rotas de auth continuam disponíveis no fim de semana', async () => {

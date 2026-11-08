@@ -6,6 +6,7 @@ import { verificationEmail } from '../mail/templates.js';
 const DUMMY_HASH = '$2b$12$ZpA4jyL2LZxwPHZMg7phxeNmsPSAG.Z34RSy/blRuIAe63RB7XhmW';
 const INVALID_CREDENTIALS = 'E-mail ou senha inválidos.';
 const INVALID_VERIFICATION = 'Link inválido ou expirado.';
+const INVALID_REFRESH = 'Refresh token inválido ou expirado.';
 
 function addHours(date, hours) {
   return new Date(date.getTime() + hours * 60 * 60 * 1000);
@@ -136,6 +137,44 @@ export function createAuthService({
       }
 
       return { ok: true, ...(await issueTokens(user)) };
+    },
+
+    async refresh(refreshToken) {
+      if (typeof refreshToken !== 'string' || !refreshToken) {
+        return { ok: false, status: 401, message: INVALID_REFRESH };
+      }
+
+      const tokenHash = hashToken(refreshToken);
+      const stored = await refreshTokensStore.findByHash(tokenHash);
+
+      if (!stored || new Date(stored.expiresAt).getTime() < now().getTime()) {
+        return { ok: false, status: 401, message: INVALID_REFRESH };
+      }
+
+      if (stored.revokedAt) {
+        // O token já foi trocado; reapresentá-lo indica possível roubo.
+        await refreshTokensStore.revokeAllForUser(stored.userId);
+        return { ok: false, status: 401, message: INVALID_REFRESH };
+      }
+
+      const user = await usersStore.findById(stored.userId);
+
+      if (!user) {
+        return { ok: false, status: 401, message: INVALID_REFRESH };
+      }
+
+      const tokens = await issueTokens(user);
+      await refreshTokensStore.revoke(tokenHash, hashToken(tokens.refreshToken));
+
+      return { ok: true, ...tokens };
+    },
+
+    async logout(refreshToken) {
+      if (typeof refreshToken === 'string' && refreshToken) {
+        await refreshTokensStore.revoke(hashToken(refreshToken));
+      }
+
+      return { ok: true };
     },
   };
 }

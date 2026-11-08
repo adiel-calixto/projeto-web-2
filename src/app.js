@@ -6,6 +6,7 @@ import { createRequestLogsStore } from './data/request-logs-store.js';
 import { createUsersStore } from './data/users-store.js';
 import { createRateLimiters } from './middleware/rate-limits.js';
 import { createRequestLogger } from './middleware/request-logger.js';
+import { createRequireAuth } from './middleware/require-auth.js';
 import { createWeekdayAccessMiddleware } from './middleware/weekday-access.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createGamesRouter } from './routes/games.js';
@@ -41,9 +42,15 @@ export function createApp({
     mailer,
     config,
   });
+  const requireAuth = createRequireAuth({ secret: config.jwt.secret });
 
   // Auth fica antes do bloqueio de fim de semana para que links de e-mail funcionem.
-  app.use('/auth', createAuthRouter({ authService, limiters }));
+  app.use('/auth', createAuthRouter({
+    authService,
+    limiters,
+    requireAuth,
+    usersStore,
+  }));
 
   app.use(createWeekdayAccessMiddleware(isWeekdayCheck));
   app.use('/jogos', createGamesRouter(gamesStore));

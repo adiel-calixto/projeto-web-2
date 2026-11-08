@@ -1,6 +1,12 @@
 import { Router } from 'express';
+import { toPublicUser } from '../data/users-store.js';
 
-export function createAuthRouter({ authService, limiters }) {
+export function createAuthRouter({
+  authService,
+  limiters,
+  requireAuth,
+  usersStore,
+}) {
   const router = Router();
 
   router.post('/cadastro', limiters.signup, async (req, res, next) => {
@@ -55,6 +61,44 @@ export function createAuthRouter({ authService, limiters }) {
 
       const { ok, ...tokens } = result;
       return res.json(tokens);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.post('/refresh', async (req, res, next) => {
+    try {
+      const result = await authService.refresh(req.body?.refreshToken);
+
+      if (!result.ok) {
+        return res.status(result.status).json({ erro: result.message });
+      }
+
+      const { ok, ...tokens } = result;
+      return res.json(tokens);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.post('/logout', async (req, res, next) => {
+    try {
+      await authService.logout(req.body?.refreshToken);
+      return res.status(204).end();
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.get('/eu', requireAuth, async (req, res, next) => {
+    try {
+      const user = await usersStore.findById(req.user.id);
+
+      if (!user) {
+        return res.status(401).json({ erro: 'Autenticação necessária.' });
+      }
+
+      return res.json(toPublicUser(user));
     } catch (error) {
       return next(error);
     }
