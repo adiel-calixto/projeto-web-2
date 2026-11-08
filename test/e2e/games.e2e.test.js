@@ -5,6 +5,8 @@ import {
   createInMemoryGamesStore,
   createInMemoryRequestLogsStore,
 } from '../helpers/in-memory-stores.js';
+import { createFakeMailer } from '../helpers/fake-mailer.js';
+import { createPassThroughLimiters, testConfig } from '../helpers/test-config.js';
 
 const hades = { code: 'G001', title: 'Hades', price: 49.9, genre: 'Ação' };
 const celeste = { code: 'G002', title: 'Celeste', price: 19.9, genre: 'Plataforma' };
@@ -13,6 +15,9 @@ function createTestApp(gamesStore) {
   return createApp({
     gamesStore,
     requestLogsStore: createInMemoryRequestLogsStore(),
+    mailer: createFakeMailer(),
+    config: testConfig,
+    limiters: createPassThroughLimiters(),
     isWeekdayCheck: () => true,
   });
 }

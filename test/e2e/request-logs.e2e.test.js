@@ -5,6 +5,8 @@ import {
   createInMemoryGamesStore,
   createInMemoryRequestLogsStore,
 } from '../helpers/in-memory-stores.js';
+import { createFakeMailer } from '../helpers/fake-mailer.js';
+import { createPassThroughLimiters, testConfig } from '../helpers/test-config.js';
 
 describe('requisições', () => {
   let requestLogsStore;
@@ -27,6 +29,9 @@ describe('requisições', () => {
     app = createApp({
       gamesStore: createInMemoryGamesStore(),
       requestLogsStore,
+      mailer: createFakeMailer(),
+      config: testConfig,
+      limiters: createPassThroughLimiters(),
       isWeekdayCheck: () => true,
     });
   });

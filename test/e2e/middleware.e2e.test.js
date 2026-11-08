@@ -5,6 +5,8 @@ import {
   createInMemoryGamesStore,
   createInMemoryRequestLogsStore,
 } from '../helpers/in-memory-stores.js';
+import { createFakeMailer } from '../helpers/fake-mailer.js';
+import { createPassThroughLimiters, testConfig } from '../helpers/test-config.js';
 
 afterEach(() => {
   jest.restoreAllMocks();
@@ -14,6 +16,9 @@ function createTestApp(overrides = {}) {
   return createApp({
     gamesStore: createInMemoryGamesStore(),
     requestLogsStore: createInMemoryRequestLogsStore(),
+    mailer: createFakeMailer(),
+    config: testConfig,
+    limiters: createPassThroughLimiters(),
     isWeekdayCheck: () => true,
     ...overrides,
   });
