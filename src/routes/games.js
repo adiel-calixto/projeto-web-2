@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { renderGamesPdf } from '../pdf/games-pdf.js';
 
-export function createGamesRouter(store) {
+export function createGamesRouter(store, { requireAuth }) {
   const router = Router();
 
   router.get('/', async (req, res, next) => {
@@ -12,7 +12,7 @@ export function createGamesRouter(store) {
     }
   });
 
-  router.post('/', async (req, res, next) => {
+  router.post('/', requireAuth, async (req, res, next) => {
     try {
       const result = await store.create(req.body);
 
@@ -64,7 +64,7 @@ export function createGamesRouter(store) {
     }
   });
 
-  router.delete('/:codigo', async (req, res, next) => {
+  router.delete('/:codigo', requireAuth, async (req, res, next) => {
     try {
       if (!(await store.deleteByCode(req.params.codigo))) {
         return res.status(404).json({ erro: 'Jogo não encontrado.' });

@@ -53,7 +53,7 @@ export function createApp({
   }));
 
   app.use(createWeekdayAccessMiddleware(isWeekdayCheck));
-  app.use('/jogos', createGamesRouter(gamesStore));
+  app.use('/jogos', createGamesRouter(gamesStore, { requireAuth }));
   app.use('/requisicoes', createRequestLogsRouter(requestLogsStore));
 
   app.use((req, res) => {

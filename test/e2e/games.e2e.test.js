@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
+import { signAccessToken } from '../../src/auth/tokens.js';
 import {
   createInMemoryGamesStore,
   createInMemoryRequestLogsStore,
@@ -10,6 +11,11 @@ import { createPassThroughLimiters, testConfig } from '../helpers/test-config.js
 
 const hades = { code: 'G001', title: 'Hades', price: 49.9, genre: 'Ação' };
 const celeste = { code: 'G002', title: 'Celeste', price: 19.9, genre: 'Plataforma' };
+const accessToken = signAccessToken({ id: 'user-1' }, { secret: testConfig.jwt.secret });
+
+function authorize(testRequest) {
+  return testRequest.set('Authorization', `Bearer ${accessToken}`);
+}
 
 function createTestApp(gamesStore) {
   return createApp({
@@ -46,8 +52,7 @@ describe('jogos', () => {
   });
 
   test('POST /jogos cria um jogo com código sequencial', async () => {
-    const response = await request(app)
-      .post('/jogos')
+    const response = await authorize(request(app).post('/jogos'))
       .send({ title: '  Stardew Valley  ', price: 24.9, genre: ' Simulação ' });
 
     expect(response.status).toBe(201);
@@ -61,8 +66,7 @@ describe('jogos', () => {
   });
 
   test('POST /jogos rejeita entrada inválida', async () => {
-    const response = await request(app)
-      .post('/jogos')
+    const response = await authorize(request(app).post('/jogos'))
       .send({ title: 'Jogo', genre: 'Ação' });
 
     expect(response.status).toBe(400);
@@ -98,7 +102,7 @@ describe('jogos', () => {
   });
 
   test('DELETE /jogos/:codigo exclui o jogo', async () => {
-    const response = await request(app).delete('/jogos/G001');
+    const response = await authorize(request(app).delete('/jogos/G001'));
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
@@ -106,10 +110,37 @@ describe('jogos', () => {
   });
 
   test('DELETE /jogos/:codigo retorna 404 quando o jogo não existe', async () => {
-    const response = await request(app).delete('/jogos/G404');
+    const response = await authorize(request(app).delete('/jogos/G404'));
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ erro: 'Jogo não encontrado.' });
+  });
+
+  test('POST /jogos exige autenticação', async () => {
+    const response = await request(app)
+      .post('/jogos')
+      .send({ title: 'Hades', price: 49.9, genre: 'Ação' });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ erro: 'Autenticação necessária.' });
+    expect(gamesStore.create).not.toHaveBeenCalled();
+  });
+
+  test('DELETE /jogos/:codigo exige autenticação', async () => {
+    const response = await request(app).delete('/jogos/G001');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ erro: 'Autenticação necessária.' });
+    expect(gamesStore.games).toEqual([hades, celeste]);
+  });
+
+  test('recusa token inválido nas rotas protegidas', async () => {
+    const response = await request(app)
+      .delete('/jogos/G001')
+      .set('Authorization', 'Bearer token-invalido');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ erro: 'Token inválido.' });
   });
 
   test('GET /jogos/pdf retorna o catálogo em PDF', async () => {
