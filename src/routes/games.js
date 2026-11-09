@@ -3,6 +3,16 @@ import { randomUUID } from 'node:crypto';
 import { renderGamesPdf } from '../pdf/games-pdf.js';
 import { validateCoverFile } from '../storage/image-validation.js';
 
+function csvEscape(value) {
+  const text = value === null || value === undefined ? '' : String(value);
+
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+}
+
 async function deleteStoredCover(storage, url) {
   try {
     await storage.deleteByUrl(url);
@@ -59,6 +69,31 @@ export function createGamesRouter(store, {
       });
 
       document.pipe(res);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/csv', async (req, res, next) => {
+    try {
+      const games = await store.list();
+      const lines = ['code,title,price,genre'];
+
+      for (const game of games) {
+        lines.push([
+          csvEscape(game.code),
+          csvEscape(game.title),
+          csvEscape(game.price),
+          csvEscape(game.genre),
+        ].join(','));
+      }
+
+      res.set({
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="jogos.csv"',
+      });
+
+      res.send(lines.join('\n'));
     } catch (error) {
       next(error);
     }

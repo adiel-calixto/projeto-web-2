@@ -69,6 +69,7 @@ As rotas `/auth` continuam disponíveis no fim de semana, inclusive para o link 
 | `PUT` | `/jogos/:codigo/capa` | Bearer | Envia uma capa em `multipart/form-data`, campo `capa`. |
 | `DELETE` | `/jogos/:codigo/capa` | Bearer | Remove a capa do jogo e do S3. |
 | `GET` | `/jogos/pdf` | não | Baixa o catálogo no arquivo `jogos.pdf`. |
+| `GET` | `/jogos/csv` | não | Baixa o catálogo no arquivo `jogos.csv`. |
 | `GET` | `/requisicoes?data=YYYY-MM-DD` | não | Lista os registros daquela data. |
 
 O corpo de `POST /jogos` deve ser JSON com `title`, `price` e `genre`:
