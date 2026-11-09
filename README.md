@@ -14,7 +14,7 @@ Por padrão, a API fica em `http://localhost:3000`. Para usar outra porta, defin
 
 O MongoDB é obrigatório. Por padrão a conexão usa `mongodb://127.0.0.1:27017/psw2`; defina `MONGODB_URI` para usar outro servidor/banco.
 
-A aplicação recusa subir sem `JWT_SECRET` (mínimo de 32 caracteres), `S3_BUCKET`, `AWS_REGION` e `S3_PUBLIC_BASE_URL`. SMTP e credenciais AWS também são necessários para enviar e-mails e gravar capas de verdade. Em produção na AWS, use IAM Role e deixe `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` vazios.
+A aplicação não sobe sem `JWT_SECRET` (mínimo de 32 caracteres), `S3_BUCKET`, `AWS_REGION` e `S3_PUBLIC_BASE_URL`. SMTP e credenciais AWS também são necessários para enviar e-mails e gravar capas. Em produção na AWS, use IAM Role e deixe `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` vazios.
 
 ### Principais variáveis de ambiente
 
@@ -25,7 +25,7 @@ A aplicação recusa subir sem `JWT_SECRET` (mínimo de 32 caracteres), `S3_BUCK
 | `REFRESH_TOKEN_TTL_DAYS` | `7` | Validade do refresh token. |
 | `EMAIL_VERIFICATION_TTL_HOURS` | `24` | Validade do link de verificação. |
 | `APP_BASE_URL` | `http://localhost:PORT` | Base do link enviado por e-mail. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | — | Envio de e-mail por SMTP. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | - | Envio de e-mail por SMTP. |
 | `S3_BUCKET`, `AWS_REGION`, `S3_PUBLIC_BASE_URL` | obrigatórios | Armazenamento e URL pública das capas. |
 | `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | vazios | Opcionais para MinIO/LocalStack. |
 
@@ -52,9 +52,9 @@ O cadastro cria a conta como não verificada e envia um link por e-mail. O prime
 | `POST` | `/auth/login` | não | `{email, password}` | `200`, `401`, `403`, `429` |
 | `POST` | `/auth/refresh` | não | `{refreshToken}` | `200`, `401` |
 | `POST` | `/auth/logout` | não | `{refreshToken}` | `204` |
-| `GET` | `/auth/eu` | Bearer | — | `200`, `401` |
+| `GET` | `/auth/eu` | Bearer | - | `200`, `401` |
 
-O refresh token é opaco, fica guardado como hash no banco e é rotacionado a cada uso. Reapresentar um token já usado revoga todos os refresh tokens do usuário. O login responde do mesmo jeito para e-mail inexistente e senha errada.
+O refresh token é opaco, é armazenado como hash no banco e rotaciona a cada uso. Reutilizar um token já usado revoga todos os refresh tokens do usuário. O login responde do mesmo jeito para e-mail inexistente e senha errada.
 
 As rotas `/auth` continuam disponíveis no fim de semana, inclusive para o link de verificação. A senha deve ter entre 8 e 72 caracteres.
 
@@ -83,7 +83,7 @@ O corpo de `POST /jogos` deve ser JSON com `title`, `price` e `genre`:
 
 O código é gerado no formato `G001`, `G002` e assim por diante. O preço deve ser um número não negativo com até duas casas decimais. Campos extras, incluindo `code` e `coverUrl`, são ignorados no cadastro.
 
-A capa aceita JPEG, PNG ou WebP de até 5 MB. O tipo é conferido pelos bytes do arquivo, e a chave no S3 é gerada pelo servidor. A resposta traz a URL pública definitiva em `coverUrl`:
+A capa aceita JPEG, PNG ou WebP de até 5 MB. O tipo é verificado pelos bytes do arquivo, e a chave no S3 é gerada pelo servidor. A resposta traz a URL pública definitiva em `coverUrl`:
 
 ```json
 {
@@ -124,7 +124,7 @@ O bucket precisa permitir leitura pública apenas em `games/*`; a escrita contin
 }
 ```
 
-A policy do usuário/IAM usado pela API precisa apenas de `s3:PutObject` e `s3:DeleteObject` no mesmo prefixo. No console da AWS, desmarque as opções de Block Public Access relacionadas a **políticas** e mantenha as de ACL ligadas. Se usar CloudFront, o bucket pode ficar totalmente privado e `S3_PUBLIC_BASE_URL` passa a ser o domínio da distribuição; nenhuma outra mudança de código é necessária.
+A policy do usuário/IAM usado pela API precisa apenas de `s3:PutObject` e `s3:DeleteObject` no mesmo prefixo. No console da AWS, desmarque as opções de Block Public Access relacionadas a políticas e mantenha as de ACL ligadas. Se usar CloudFront, o bucket pode ficar totalmente privado e `S3_PUBLIC_BASE_URL` passa a ser o domínio da distribuição; nenhuma outra mudança de código é necessária.
 
 Para desenvolvimento sem AWS, aponte `S3_ENDPOINT` para um MinIO/LocalStack, use `S3_FORCE_PATH_STYLE=true` e ajuste `S3_PUBLIC_BASE_URL` (por exemplo, `http://localhost:9000/psw2-capas-dev`).
 
