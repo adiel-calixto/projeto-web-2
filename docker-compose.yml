@@ -1,0 +1,82 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  floci:
+    image: floci/floci:latest-compat
+    restart: unless-stopped
+    ports:
+      - "4566:4566"
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_BASE_URL: http://floci:4566
+      FLOCI_STORAGE_MODE: hybrid
+      FLOCI_SERVICES_S3_ENFORCE_AUTH: "false"
+      FLOCI_INIT_HOOKS_TIMEOUT_SECONDS: "60"
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://localhost:4566
+    volumes:
+      - floci_data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker/floci-init/ready.d:/etc/floci/init/ready.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "aws sts get-caller-identity >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      floci:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      MONGODB_URI: mongodb://mongo:27017/psw2
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-please-change-this-to-at-least-32-bytes-long}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+      EMAIL_VERIFICATION_TTL_HOURS: ${EMAIL_VERIFICATION_TTL_HOURS:-24}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      MAIL_FROM: ${MAIL_FROM:-Catálogo de jogos <nao-responda@exemplo.com>}
+      AWS_REGION: us-east-1
+      S3_BUCKET: psw2-capas-dev
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      S3_PUBLIC_BASE_URL: http://localhost:4566/psw2-capas-dev
+      S3_ENDPOINT: http://floci:4566
+      S3_FORCE_PATH_STYLE: "true"
+
+volumes:
+  mongo_data:
+  floci_data:
