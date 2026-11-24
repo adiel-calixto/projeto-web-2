@@ -30,7 +30,7 @@ function authorize(testRequest) {
   return testRequest.set('Authorization', `Bearer ${accessToken}`);
 }
 
-function createTestApp(gamesStore) {
+function createTestApp(gamesStore, { isWeekdayCheck = () => true } = {}) {
   return createApp({
     gamesStore,
     requestLogsStore: createInMemoryRequestLogsStore(),
@@ -38,7 +38,7 @@ function createTestApp(gamesStore) {
     storage: createFakeStorage(),
     config: testConfig,
     limiters: createPassThroughLimiters(),
-    isWeekdayCheck: () => true,
+    isWeekdayCheck,
   });
 }
 
@@ -178,5 +178,63 @@ describe('jogos', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  test('GET /jogos/csv retorna o catálogo em CSV', async () => {
+    const response = await request(app).get('/jogos/csv');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toBe('text/csv; charset=utf-8');
+    expect(response.headers['content-disposition']).toBe('attachment; filename="jogos.csv"');
+    expect(response.text).toBe(
+      'code,title,price,genre\nG001,Hades,49.9,Ação\nG002,Celeste,19.9,Plataforma',
+    );
+  });
+
+  test('GET /jogos/csv funciona com catálogo vazio', async () => {
+    const response = await request(createTestApp(createInMemoryGamesStore()))
+      .get('/jogos/csv');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toBe('code,title,price,genre');
+  });
+
+  test('GET /jogos/csv escapa vírgulas, aspas e quebras de linha', async () => {
+    const store = createInMemoryGamesStore([
+      { ...hades, title: 'Hades, "Edição"' },
+      { ...celeste, title: 'Linha1\nLinha2' },
+    ]);
+    const response = await request(createTestApp(store)).get('/jogos/csv');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toBe([
+      'code,title,price,genre',
+      'G001,"Hades, ""Edição""",49.9,Ação',
+      'G002,"Linha1\nLinha2",19.9,Plataforma',
+    ].join('\n'));
+  });
+
+  test('GET /jogos/csv não escapa valores simples', async () => {
+    const response = await request(createTestApp(createInMemoryGamesStore([hades])))
+      .get('/jogos/csv');
+
+    expect(response.text.split('\n')[1]).toBe('G001,Hades,49.9,Ação');
+    expect(response.text).not.toContain('"');
+  });
+
+  test('GET /jogos/csv é público', async () => {
+    const response = await request(app).get('/jogos/csv');
+
+    expect(response.status).toBe(200);
+  });
+
+  test('GET /jogos/csv responde 403 no fim de semana', async () => {
+    const weekendApp = createTestApp(gamesStore, { isWeekdayCheck: () => false });
+    const response = await request(weekendApp).get('/jogos/csv');
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      erro: 'A API só está disponível de segunda a sexta-feira.',
+    });
   });
 });
