@@ -22,6 +22,23 @@ function positiveNumber(value, name, fallback) {
   return parsed;
 }
 
+function corsOrigins(env) {
+  const origins = required(env, 'CORS_ORIGINS')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
+  if (origins.length === 0) {
+    throw new Error('A variável de ambiente CORS_ORIGINS é obrigatória.');
+  }
+
+  if (origins.includes('*')) {
+    throw new Error('A variável de ambiente CORS_ORIGINS não aceita "*"; liste as origens permitidas.');
+  }
+
+  return origins;
+}
+
 export function loadConfig(env = process.env) {
   const jwtSecret = required(env, 'JWT_SECRET');
 
@@ -43,6 +60,7 @@ export function loadConfig(env = process.env) {
       'EMAIL_VERIFICATION_TTL_HOURS',
       24,
     ),
+    cors: { origins: corsOrigins(env) },
     appBaseUrl: (env.APP_BASE_URL?.trim() || `http://localhost:${port}`).replace(/\/+$/, ''),
     smtp: {
       host: env.SMTP_HOST?.trim() ?? '',

@@ -14,7 +14,7 @@ Por padrão, a API fica em `http://localhost:3000`. Para usar outra porta, defin
 
 O MongoDB é obrigatório. Por padrão a conexão usa `mongodb://127.0.0.1:27017/psw2`; defina `MONGODB_URI` para usar outro servidor/banco.
 
-A aplicação não sobe sem `JWT_SECRET` (mínimo de 32 caracteres), `S3_BUCKET`, `AWS_REGION` e `S3_PUBLIC_BASE_URL`. SMTP e credenciais AWS também são necessários para enviar e-mails e gravar capas. Em produção na AWS, use IAM Role e deixe `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` vazios.
+A aplicação não sobe sem `JWT_SECRET` (mínimo de 32 caracteres), `CORS_ORIGINS`, `S3_BUCKET`, `AWS_REGION` e `S3_PUBLIC_BASE_URL`. SMTP e credenciais AWS também são necessários para enviar e-mails e gravar capas. Em produção na AWS, use IAM Role e deixe `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` vazios.
 
 ### Principais variáveis de ambiente
 
@@ -24,6 +24,7 @@ A aplicação não sobe sem `JWT_SECRET` (mínimo de 32 caracteres), `S3_BUCKET`
 | `JWT_ACCESS_EXPIRES_IN` | `15m` | Validade do access token. |
 | `REFRESH_TOKEN_TTL_DAYS` | `7` | Validade do refresh token. |
 | `EMAIL_VERIFICATION_TTL_HOURS` | `24` | Validade do link de verificação. |
+| `CORS_ORIGINS` | obrigatório | Origens do front-end permitidas, separadas por vírgula (sem `*`). Veja [CORS](#cors). |
 | `APP_BASE_URL` | `http://localhost:PORT` | Base do link enviado por e-mail. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | - | Envio de e-mail por SMTP. |
 | `S3_BUCKET`, `AWS_REGION`, `S3_PUBLIC_BASE_URL` | obrigatórios | Armazenamento e URL pública das capas. |
@@ -34,6 +35,25 @@ Gere um segredo com:
 ```sh
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
+
+## CORS
+
+Só as origens listadas em `CORS_ORIGINS` recebem cabeçalhos CORS; qualquer outra origem é bloqueada pelo navegador. A variável é obrigatória e não aceita `*`: sem ela a API não sobe.
+
+Para testar localmente com um front-end no navegador:
+
+1. Coloque a origem exata do front no `.env` (esquema, host e porta, sem barra final), por exemplo `CORS_ORIGINS=http://localhost:5173`. Para várias origens, separe por vírgula.
+2. Reinicie a API (`npm start`). No Docker Compose o padrão já é `http://localhost:5173`; para mudar, exporte `CORS_ORIGINS` antes do `docker compose up`.
+3. Confira o preflight:
+
+```sh
+curl -i -X OPTIONS http://localhost:3000/jogos \
+  -H 'Origin: http://localhost:5173' \
+  -H 'Access-Control-Request-Method: GET' \
+  -H 'Access-Control-Request-Headers: authorization'
+```
+
+A resposta deve trazer `Access-Control-Allow-Origin: http://localhost:5173`. Com outra origem, o cabeçalho não aparece. Postman e curl não passam por CORS, que é uma regra só dos navegadores.
 
 ## Autenticação
 

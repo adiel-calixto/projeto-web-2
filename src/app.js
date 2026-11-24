@@ -1,3 +1,4 @@
+import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
 import { createAuthService } from './auth/auth-service.js';
@@ -40,6 +41,15 @@ export function createApp({
 
   const app = express();
 
+  // Antes de logger, auth e dia útil: preflights não levam Authorization e
+  // respostas 403/404/erro também precisam dos cabeçalhos CORS.
+  app.use(cors({
+    origin: config.cors.origins,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
+    exposedHeaders: ['Content-Disposition'],
+    maxAge: 600,
+  }));
   app.use(createRequestLogger(requestLogsStore));
   app.use(express.json());
 

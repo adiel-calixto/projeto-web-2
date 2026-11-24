@@ -6,12 +6,14 @@ const baseEnv = {
   S3_BUCKET: 'bucket-de-teste',
   AWS_REGION: 'sa-east-1',
   S3_PUBLIC_BASE_URL: 'https://bucket-de-teste.s3.sa-east-1.amazonaws.com/',
+  CORS_ORIGINS: 'http://localhost:5173',
 };
 
 describe('loadConfig', () => {
   test('carrega os valores obrigatórios e aplica os padrões', () => {
     expect(loadConfig(baseEnv)).toEqual({
       jwt: { secret: 'a'.repeat(32), accessExpiresIn: '15m' },
+      cors: { origins: ['http://localhost:5173'] },
       refreshTtlDays: 7,
       emailVerificationTtlHours: 24,
       appBaseUrl: 'http://localhost:3000',
@@ -39,13 +41,29 @@ describe('loadConfig', () => {
       .toThrow('A variável de ambiente JWT_SECRET deve ter pelo menos 32 caracteres.');
   });
 
-  test.each(['S3_BUCKET', 'AWS_REGION', 'S3_PUBLIC_BASE_URL'])(
+  test.each(['S3_BUCKET', 'AWS_REGION', 'S3_PUBLIC_BASE_URL', 'CORS_ORIGINS'])(
     'rejeita %s ausente',
     (name) => {
       expect(() => loadConfig({ ...baseEnv, [name]: '' }))
         .toThrow(`A variável de ambiente ${name} é obrigatória.`);
     },
   );
+
+  test('CORS_ORIGINS vira uma lista limpa de origens', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      CORS_ORIGINS: ' http://localhost:5173/ , ,https://app.exemplo.com ',
+    });
+
+    expect(config.cors.origins).toEqual(['http://localhost:5173', 'https://app.exemplo.com']);
+  });
+
+  test('rejeita CORS_ORIGINS vazio ou com curinga', () => {
+    expect(() => loadConfig({ ...baseEnv, CORS_ORIGINS: ' , ' }))
+      .toThrow('A variável de ambiente CORS_ORIGINS é obrigatória.');
+    expect(() => loadConfig({ ...baseEnv, CORS_ORIGINS: '*' }))
+      .toThrow('CORS_ORIGINS não aceita "*"');
+  });
 
   test('rejeita números inválidos', () => {
     expect(() => loadConfig({ ...baseEnv, PORT: 'abc' }))

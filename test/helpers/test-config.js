@@ -5,6 +5,7 @@ export const testConfig = {
   },
   refreshTtlDays: 7,
   emailVerificationTtlHours: 24,
+  cors: { origins: ['http://localhost:5173'] },
   appBaseUrl: 'http://localhost:3000',
   smtp: {
     host: 'smtp.teste',
